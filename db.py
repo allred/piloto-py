@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-from peewee import *
+# run ./% --help
+import click
+import peewee
 from playhouse.postgres_ext import *
 
 database = PostgresqlDatabase(
@@ -31,7 +33,23 @@ def drop_tables():
     Geolocator,
   ], safe=True)
 
-if __name__ == '__main__':
-  drop_tables()
-  create_tables()
+@click.group()
+def cli():
   pass
+
+@cli.command()
+def create():
+  click.echo('creating tables')
+  create_tables()
+
+@cli.command()
+def drop():
+  click.echo('dropping tables')
+  drop_tables()
+
+@cli.command()
+def list():
+  click.echo('list goes here')
+
+if __name__ == '__main__':
+  cli()
