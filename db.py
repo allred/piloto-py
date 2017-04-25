@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # run ./% --help
 import click
+import csv
 import glob
 import json
 import os
@@ -20,9 +21,18 @@ class BaseModel(Model):
   class Meta:
     database = database
 
-class Geolocator(BaseModel):
-  data = BinaryJSONField()
+class Bluelog(BaseModel):
   tstamp = DateTimeTZField()
+  mac = CharField(max_length = 17) 
+  name = CharField()
+  class Meta:
+    indexes = (
+      (('tstamp', 'mac', 'name'), True),
+    )
+
+class Geolocator(BaseModel):
+  tstamp = DateTimeTZField()
+  data = BinaryJSONField()
   class Meta:
     database = database
     indexes = (
@@ -31,38 +41,58 @@ class Geolocator(BaseModel):
 
 # UTILITY FUNCTIONS
 
+tables = [
+  Bluelog,
+  Geolocator,
+]
+
 def create_tables():
   database.get_conn()
-  database.create_tables([
-    Geolocator,
-  ], safe=True)
+  database.create_tables(tables, safe=True)
 
 def drop_tables():
   database.get_conn()
-  database.drop_tables([
-    Geolocator,
-  ], safe=True)
+  database.drop_tables(tables, safe=True) 
 
 def load_tables():
+  database.get_conn()
+  load_bluelog()
   load_geolocator()
 
+def progbar(i, every = 1): 
+  if i % every == 0:
+    print('.', end='', flush=True)
+
+def load_bluelog():
+  print("loading bluelog", end='')
+  re_skip = re.compile(".*Scan started.*|.*Scan ended.*|.*\x00.*")
+  for i, file in enumerate(glob.glob(dir_log_piloto + "/btoothlog/*.log")):
+    progbar(i, 5)
+    for line in open(file, "r").readlines():
+      if re_skip.match(line):
+        continue 
+      for row in csv.reader([line]):
+        Bluelog.get_or_create(
+          tstamp = row[0],
+          mac = row[1],
+          name = row[2],
+        )
+  print("\n")
+
+# TODO: add host when missing
 def load_geolocator():
   print("loading geolocator", end='')
-  database.get_conn()
-  index = 0
-  for file in glob.glob(dir_log_piloto + "/geolocator/*.log"):
+  for i, file in enumerate(glob.glob(dir_log_piloto + "/geolocator/*.log")):
+    progbar(i)
     for line in open(file, "r").readlines():
       # there is some junk data, ensure it looks like json
       if re.match("^\{", line) == None:
         continue 
       data = json.loads(line)
       Geolocator.get_or_create(
-        data=line,
-        tstamp = data['time']
+        tstamp = data['time'],
+        data = line,
       )
-      if index % 1000 == 0:
-        print('.', end='', flush=True)
-      index += 1
   print("\n")
 
 # COMMANDS ###################################################################
