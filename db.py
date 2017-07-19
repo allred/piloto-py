@@ -112,8 +112,9 @@ def load_bluelog():
   print("loading bluelog", end='')
   re_skip = re.compile(".*Scan started on.*|.*Scan ended.*|.*\x00.*")
   for i, file in enumerate(glob.glob(dir_log_piloto + "/btoothlog/*.log")):
+    #print({'f': file})
     progbar(i, 5)
-    for line in open(file, "r").readlines():
+    for line in open(file, "r", errors='ignore').readlines():
       if re_skip.match(line):
         continue 
       for row in csv.reader([line]):
