@@ -1,6 +1,4 @@
-appdirs==1.4.3
-packaging==16.8
-peewee==2.9.1
+click==6.7
+peewee==2.10.2
 psycopg2==2.7.1
-pyparsing==2.2.0
-six==1.10.0
+SQLAlchemy==1.1.15
