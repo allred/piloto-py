@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # run ./% --help
+# initialize:
+# create database piloto
 import click
 import csv
 import glob
