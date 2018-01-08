@@ -12,7 +12,7 @@ import re
 import sys
 from playhouse.postgres_ext import *
 
-database = PostgresqlDatabase(
+database = PostgresqlExtDatabase(
     'piloto',
 )
 
@@ -20,23 +20,27 @@ dir_log_piloto = os.environ['HOME'] + "/m/rp3-piloto-1/log"
 
 # SCHEMA DEFINITIONS
 
-class BaseModel(Model):
+class BaseExtModel(Model):
     class Meta:
         database = database
 
-class Gpsd(BaseModel):
+class Gpsd(BaseExtModel):
+    data = HStoreField()
+    """
     class_ = CharField() # this field is "class" in the gpsd json
     tag = CharField()
     device = CharField()
     mode = IntegerField()
-    time = DateTimeTZField()
+    time = DateTimeTZField(null=True)
     ept = DecimalField()
     lat = DecimalField()
     lon = DecimalField()
+    alt = DecimalField(null=True)
     track = DecimalField()
     speed = DecimalField()
+    """
 
-class Bluelog(BaseModel):
+class Bluelog(BaseExtModel):
     tstamp = DateTimeTZField()
     mac = CharField(max_length = 17)
     name = CharField()
@@ -45,7 +49,7 @@ class Bluelog(BaseModel):
             (('tstamp', 'mac', 'name'), True),
         )
 
-class Geolocator(BaseModel):
+class Geolocator(BaseExtModel):
     tstamp = DateTimeTZField()
     data = BinaryJSONField()
     class Meta:
@@ -118,6 +122,7 @@ def load_tables():
     database.get_conn()
     load_bluelog()
     load_geolocator()
+    load_gpsd()
 
 def progbar(i, every = 1):
     if i % every == 0:
@@ -156,6 +161,37 @@ def load_geolocator():
             )
     print("\n")
 
+def load_gpsd():
+    print("loading gpsd", end='')
+    for i, file in enumerate(glob.glob(dir_log_piloto + "/*.gps")):
+        progbar(i)
+        for line in open(file, "r").readlines():
+            print(line)
+            data = json.loads(line)
+            """
+            Gpsd.get_or_create(
+                class_ = data['class'],
+                tag = data['tag'],
+                device = data['device'],
+                mode = data['mode'],
+                time = data.get('time'),
+                ept = data['ept'],
+                lat = data['lat'],
+                lon = data['lon'],
+                alt = data.get('alt'),
+                track = data['track'],
+                speed = data['speed'],
+            )
+            """
+            break
+        """
+                Gpsd.get_or_create(
+
+                )
+        """
+    print("\n")
+
+
 # COMMANDS ###################################################################
 
 @click.group()
@@ -181,6 +217,10 @@ def list():
 def load():
     #click.echo('loading tables')
     load_tables()
+
+@cli.command()
+def l_gpsd():
+    load_gpsd()
 
 if __name__ == '__main__':
     cli()
