@@ -25,20 +25,8 @@ class BaseExtModel(Model):
         database = database
 
 class Gpsd(BaseExtModel):
-    data = HStoreField()
-    """
-    class_ = CharField() # this field is "class" in the gpsd json
-    tag = CharField()
-    device = CharField()
-    mode = IntegerField()
-    time = DateTimeTZField(null=True)
-    ept = DecimalField()
-    lat = DecimalField()
-    lon = DecimalField()
-    alt = DecimalField(null=True)
-    track = DecimalField()
-    speed = DecimalField()
-    """
+    tstamp = DateTimeTZField(null=True)
+    data = BinaryJSONField()
 
 class Bluelog(BaseExtModel):
     tstamp = DateTimeTZField()
@@ -52,10 +40,6 @@ class Bluelog(BaseExtModel):
 class Geolocator(BaseExtModel):
     tstamp = DateTimeTZField()
     data = BinaryJSONField()
-    class Meta:
-        indexes = (
-            (('data', 'tstamp'), True),
-        )
 
 # UTILITY FUNCTIONS
 
@@ -66,15 +50,15 @@ tables = [
 ]
 
 def create_tables():
-    database.get_conn()
+    database.connection()
     database.create_tables(tables, safe=True)
 
 def drop_tables():
-    database.get_conn()
+    database.connection()
     database.drop_tables(tables, safe=True)
 
 def list_tables():
-    c = database.get_conn().cursor()
+    c = database.connection().cursor()
     c.execute('''
 
 SELECT nspname || '.' || relname AS "relation",
@@ -119,7 +103,7 @@ SELECT *, pg_size_pretty(total_bytes) AS total
         print(r)
 
 def load_tables():
-    database.get_conn()
+    database.connection()
     load_bluelog()
     load_geolocator()
     load_gpsd()
@@ -166,29 +150,15 @@ def load_gpsd():
     for i, file in enumerate(glob.glob(dir_log_piloto + "/*.gps")):
         progbar(i)
         for line in open(file, "r").readlines():
-            print(line)
-            data = json.loads(line)
-            """
-            Gpsd.get_or_create(
-                class_ = data['class'],
-                tag = data['tag'],
-                device = data['device'],
-                mode = data['mode'],
-                time = data.get('time'),
-                ept = data['ept'],
-                lat = data['lat'],
-                lon = data['lon'],
-                alt = data.get('alt'),
-                track = data['track'],
-                speed = data['speed'],
+            try:
+                data_d = json.loads(line)
+            except:
+                print('x', end='', flush=True)
+                continue
+            Gpsd.create(
+                tstamp = data_d.get("time", "1970-01-01T00:00:00.000Z"),
+                data = data_d,
             )
-            """
-            break
-        """
-                Gpsd.get_or_create(
-
-                )
-        """
     print("\n")
 
 
@@ -216,6 +186,12 @@ def list():
 @cli.command()
 def load():
     #click.echo('loading tables')
+    load_tables()
+
+@cli.command()
+def reload():
+    drop_tables()
+    create_tables()
     load_tables()
 
 @cli.command()
