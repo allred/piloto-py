@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # run ./% --help
-# initialize:
-# create database piloto
 import click
 import csv
 import glob
@@ -10,12 +8,13 @@ import os
 import re
 import sys
 from peewee import *
-#from playhouse.postgres_ext import *
+from playhouse.sqlite_ext import SqliteExtDatabase
 
-#database = PostgresqlExtDatabase(
-#    'piloto',
-#)
-database = SqliteDatabase("piloto")
+db_name = "piloto_sqlite.db"
+database = SqliteDatabase(db_name, pragmas=(
+    ('foreign_keys', 1),
+    ('journal_mode', 'wal'),
+    ))
 
 dir_log_piloto = os.environ['HOME'] + "/m/rp3-piloto-1/log"
 
@@ -59,48 +58,15 @@ def drop_tables():
     database.drop_tables(tables, safe=True)
 
 def list_tables():
-    pass
-
-def list_tables_pg():
     c = database.connection().cursor()
     c.execute('''
-
-SELECT nspname || '.' || relname AS "relation",
-    pg_size_pretty(pg_relation_size(C.oid)) AS "size"
-  FROM pg_class C
-  LEFT JOIN pg_namespace N ON (N.oid = C.relnamespace)
-  WHERE nspname NOT IN ('pg_catalog', 'information_schema')
-  ORDER BY pg_relation_size(C.oid) DESC
-  LIMIT 20;
-
-/*
-    select relname, relpages
-    from pg_class
-    order by relpages desc
-    limit 20
-*/
-
-/*
-SELECT *, pg_size_pretty(total_bytes) AS total
-    , pg_size_pretty(index_bytes) AS INDEX
-    , pg_size_pretty(toast_bytes) AS toast
-    , pg_size_pretty(table_bytes) AS TABLE
-  FROM (
-  SELECT *, total_bytes-index_bytes-COALESCE(toast_bytes,0) AS table_bytes FROM (
-      SELECT c.oid,nspname AS table_schema, relname AS TABLE_NAME
-              , c.reltuples AS row_estimate
-              , pg_total_relation_size(c.oid) AS total_bytes
-              , pg_indexes_size(c.oid) AS index_bytes
-              , pg_total_relation_size(reltoastrelid) AS toast_bytes
-          FROM pg_class c
-          LEFT JOIN pg_namespace n ON n.oid = c.relnamespace
-          WHERE relkind = 'r'
-  ) a
-) a
-  ORDER BY total
-  -- LIMIT 2
-;
-*/
+SELECT
+    name
+FROM
+    sqlite_master
+WHERE
+    type = 'table' AND
+    name NOT LIKE 'sqlite_%'
     ''')
     print([desc[0] for desc in c.description])
     for r in c:

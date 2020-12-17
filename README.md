@@ -1,4 +1,4 @@
-# piloto-py
+# piloto_db
 
 Data tools for Piloto.
 
