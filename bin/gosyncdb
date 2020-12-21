@@ -1,5 +1,7 @@
 #!/bin/bash
-rsync_piloto
+if [[ $(hostname) =~ '^wyvern' ]]; then
+    rsync_piloto
+fi
 rm -v $PWD/sqlite_piloto.db*
 $PWD/bin/pwee_sqlite.py create
 $PWD/bin/pwee_sqlite.py load 
