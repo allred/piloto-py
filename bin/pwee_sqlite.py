@@ -2,21 +2,27 @@
 # run ./% --help
 import click
 import csv
+import functools
 import glob
 import json
 import os
 import re
 import sys
 from peewee import *
+from playhouse.postgres_ext import JSONField 
 from playhouse.sqlite_ext import SqliteExtDatabase
 
-db_name = "piloto_sqlite.db"
+hosts_piloto = [
+    'rp2-piloto-1',
+]
+
+db_name = "sqlite_piloto.db"
 database = SqliteDatabase(db_name, pragmas=(
     ('foreign_keys', 1),
     ('journal_mode', 'wal'),
     ))
 
-dir_log_piloto = os.environ['HOME'] + "/m/rp3-piloto-1/log"
+dir_log_piloto = os.environ['HOME'] + "/m/rp2-piloto-1/log"
 
 # SCHEMA DEFINITIONS
 
@@ -29,23 +35,25 @@ class BaseExtModel(Model):
 #    data = BinaryJSONField()
 
 class Bluelog(BaseExtModel):
+    hostname = CharField()
     tstamp = DateField()
     mac = CharField(max_length = 17)
     name = CharField()
     class Meta:
         indexes = (
-            (('tstamp', 'mac', 'name'), True),
+            (('hostname', 'tstamp', 'mac', 'name'), True),
         )
 
-#class Geolocator(BaseExtModel):
-#    tstamp = DateTimeTZField()
-#    data = BinaryJSONField()
+class Geolocator(BaseExtModel):
+    hostname = CharField()
+    tstamp = DateField()
+    data = JSONField()
 
 # UTILITY FUNCTIONS
 
 tables = [
     Bluelog,
-    #Geolocator,
+    Geolocator,
     #Gpsd,
 ]
 
@@ -74,45 +82,56 @@ WHERE
 
 def load_tables():
     database.connection()
-    load_bluelog()
-    load_geolocator()
-    load_gpsd()
+    for h in hosts_piloto:
+        load_bluelog(h)
+        load_geolocator(h)
+        #load_gpsd(h)
 
 def progbar(i, every = 1):
     if i % every == 0:
         print('.', end='', flush=True)
 
-def load_bluelog():
-    print("loading bluelog", end='')
+def load_bluelog(hostname):
+    num_skipped = 0
+    print(f"loading bluelog for {hostname}", end='')
     re_skip = re.compile(".*Scan started on.*|.*Scan ended.*|.*\x00.*")
     for i, file in enumerate(glob.glob(dir_log_piloto + "/btoothlog/*.log")):
         #print({'f': file})
         progbar(i, 5)
         for line in open(file, "r", errors='ignore').readlines():
+            if len(line) < 2:
+                num_skipped += 1
+                continue
             if re_skip.match(line):
                 continue
             for row in csv.reader([line]):
                 Bluelog.get_or_create(
+                    hostname = hostname,
                     tstamp = row[0],
                     mac = row[1],
                     name = row[2],
                 )
+    print(f" skipped {num_skipped}", end='')
     print("\n")
 
 # TODO: add host when missing
-def load_geolocator():
-    print("loading geolocator", end='')
+def load_geolocator(hostname):
+    num_skipped = 0
+    print(f"loading geolocator for {hostname}", end='')
     for i, file in enumerate(glob.glob(dir_log_piloto + "/geolocator/*.log")):
         progbar(i)
         for line in open(file, "r").readlines():
             # there is some junk data, try to ensure it looks like json
             if re.match("^\{", line) == None:
+                num_skipped += 1
                 continue
             data = json.loads(line)
             Geolocator.get_or_create(
+                hostname = hostname,
                 tstamp = data['time'],
-                data = line,
+                data = data,
             )
+    print(f" skipped {num_skipped}", end='')
     print("\n")
 
 def load_gpsd():

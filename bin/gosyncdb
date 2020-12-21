@@ -1,0 +1,5 @@
+#!/bin/bash
+rsync_piloto
+rm -v $PWD/sqlite_piloto.db*
+$PWD/bin/pwee_sqlite.py create
+$PWD/bin/pwee_sqlite.py load 
