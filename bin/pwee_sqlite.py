@@ -39,25 +39,28 @@ def progbar(i, every = 1):
 
 def load_bluelog(hostname):
     num_skipped = 0
+    num_loaded = 0
     print(f"loading bluelog for {hostname}", end='')
     re_skip = re.compile(".*Scan started on.*|.*Scan ended.*|.*\x00.*")
     for i, file in enumerate(glob.glob(dir_log_piloto + "/btoothlog/*.log")):
-        #print({'f': file})
         progbar(i, 5)
         for line in open(file, "r", errors='ignore').readlines():
             if len(line) < 2:
                 num_skipped += 1
                 continue
             if re_skip.match(line):
+                num_skipped += 1
                 continue
             for row in csv.reader([line]):
+                tstamp = row[0].translate({ord(i): None for i in '[]'})
                 Bluelog.get_or_create(
                     hostname = hostname,
-                    tstamp = row[0],
+                    tstamp = tstamp,
                     mac = row[1],
                     name = row[2],
                 )
-    print(f" skipped {num_skipped}", end='')
+                num_loaded += 1
+    print(f" skipped {num_skipped}/{num_loaded}", end='')
     print("\n")
 
 # TODO: add host when missing
