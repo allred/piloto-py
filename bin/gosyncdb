@@ -1,5 +1,5 @@
 #!/bin/bash
-if [[ $(hostname) =~ '^wyvern' ]]; then
+if [[ $(hostname) =~ 'wyvern' ]]; then
     rsync_piloto
 fi
 rm -v $PWD/sqlite_piloto.db*
