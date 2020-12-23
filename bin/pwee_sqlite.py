@@ -66,6 +66,7 @@ def load_bluelog(hostname):
 # TODO: add host when missing
 def load_geolocator(hostname):
     num_skipped = 0
+    num_loaded = 0
     print(f"loading geolocator for {hostname}", end='')
     for i, file in enumerate(glob.glob(dir_log_piloto + "/geolocator/*.log")):
         progbar(i)
@@ -85,7 +86,8 @@ def load_geolocator(hostname):
                 altitude = data['data']['altitude'],
                 data = data['data'],
             )
-    print(f" skipped {num_skipped}", end='')
+            num_loaded += 1
+    print(f" skipped {num_skipped}/{num_loaded}", end='')
     print("\n")
 
 def load_gpsd():
