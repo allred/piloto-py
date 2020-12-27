@@ -7,6 +7,23 @@ from base import *
 #for y in x:
 #    print(y.speed)
 
-q = Bluelog.select().where(Bluelog.hostname == 'rp2-piloto-1')
+q = (
+        Bluelog.select(
+            Bluelog.name,
+            fn.Count(Bluelog.name).alias('count')
+        ).where(
+            Bluelog.hostname == 'rp2-piloto-1'
+        )
+        .group_by(Bluelog.name)
+        .order_by(SQL('count').asc())
+    )
 for r in q:
-    print(r.tstamp, r.name)
+    #print(r.tstamp, r.name)
+    print(r.name, r.count)
+
+#query = (User
+#         .select(User, fn.Count(Tweet.id).alias('count'))
+#         .join(Tweet, JOIN.LEFT_OUTER)
+#         .group_by(User))
+
+
